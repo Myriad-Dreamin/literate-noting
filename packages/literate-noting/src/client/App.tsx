@@ -3,6 +3,7 @@ import {
   FileText,
   FolderOpen,
   RefreshCw,
+  RotateCcw,
   Save,
   SlidersHorizontal,
   Trash2,
@@ -44,7 +45,9 @@ type EditorLoad = {
 export function App() {
   const editorRef = useRef<MarkdownEditorHandle | null>(null);
   const activeDocumentRef = useRef<MarkdownDocument | null>(null);
+  const draftWriteRef = useRef<Promise<void>>(Promise.resolve());
   const isDirtyRef = useRef(false);
+  const loadVersionRef = useRef(0);
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [activeDocument, setActiveDocument] = useState<MarkdownDocument | null>(
     null
@@ -204,7 +207,7 @@ export function App() {
     setActiveDocument(null);
     setEditorLoad({
       cachedEditorState: null,
-      key: `empty:${Date.now()}`,
+      key: `${(loadVersionRef.current += 1)}:empty`,
       markdown: ""
     });
     setIsDirty(false);
@@ -212,14 +215,20 @@ export function App() {
     setLoadState({ status: "ready" });
   }
 
-  async function openDocument(documentId: string, mounted = true) {
+  async function openDocument(
+    documentId: string,
+    mounted = true,
+    restoreDraft = true
+  ) {
     setLoadState({ status: "loading", message: "正在载入文档" });
     setSaveState("未保存");
 
     try {
       const [document, draft] = await Promise.all([
         documentProvider.load(documentId),
-        documentProvider.loadDraft(documentId)
+        restoreDraft
+          ? documentProvider.loadDraft(documentId)
+          : Promise.resolve(null)
       ]);
 
       if (!mounted) {
@@ -227,12 +236,14 @@ export function App() {
       }
 
       const shouldRestoreDraft =
-        draft !== null && draft.updatedAt > document.updatedAt;
+        restoreDraft && draft !== null && draft.updatedAt > document.updatedAt;
 
       setActiveDocument(document);
       setEditorLoad({
         cachedEditorState: shouldRestoreDraft ? draft.editorState : null,
-        key: `${document.id}:${document.updatedAt}:${
+        key: `${(loadVersionRef.current += 1)}:${document.id}:${
+          document.updatedAt
+        }:${
           shouldRestoreDraft ? draft.updatedAt : "saved"
         }`,
         markdown: document.markdown
@@ -305,6 +316,31 @@ export function App() {
       setSaveState(error instanceof Error ? error.message : "保存失败");
     }
   }, [activeDocument]);
+
+  async function discardDirtyChanges() {
+    if (!activeDocument || !isDirty) {
+      return;
+    }
+
+    const shouldDiscard = window.confirm(
+      `放弃 ${activeDocument.title} 的未保存修改？`
+    );
+    if (!shouldDiscard) {
+      return;
+    }
+
+    setSaveState("放弃中");
+
+    try {
+      await draftWriteRef.current;
+      await documentProvider.clearDraft(activeDocument.id);
+      await openDocument(activeDocument.id, true, false);
+      setIsDirty(false);
+      setSaveState("已放弃");
+    } catch (error) {
+      setSaveState(error instanceof Error ? error.message : "放弃失败");
+    }
+  }
 
   async function refreshDocumentList(nextDocumentId?: string | null) {
     const documentList = await documentProvider.list();
@@ -406,12 +442,14 @@ export function App() {
       return;
     }
 
-    void documentProvider.saveDraft({
+    const draftWrite = documentProvider.saveDraft({
       documentId: activeDocument.id,
       baseUpdatedAt: activeDocument.updatedAt,
       editorState,
       updatedAt: new Date().toISOString()
     });
+    draftWriteRef.current = draftWrite.catch(() => {});
+    void draftWrite.catch(() => {});
     setIsDirty(true);
     setSaveState("草稿已缓存");
   }
@@ -586,6 +624,16 @@ export function App() {
             >
               <RefreshCw size={16} />
               重载
+            </button>
+            <button
+              className="action-button"
+              disabled={!activeDocument || !isDirty}
+              onClick={() => void discardDirtyChanges()}
+              title="放弃未保存修改"
+              type="button"
+            >
+              <RotateCcw size={16} />
+              放弃
             </button>
             <button
               className="action-button action-button-primary"
