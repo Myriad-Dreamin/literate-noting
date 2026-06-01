@@ -1,50 +1,64 @@
 # Literate Noting
 
-React + Lexical frontend with a Hono backend, structured like the `work/ts/lilith` project. The app loads Markdown documents from the API, edits them visually in Lexical, and renders playable ABC notation with `abcjs`.
+Literate Noting 是一个 local-first 的可视化 Markdown 笔记编辑器。它用
+React 和 Lexical 构建编辑体验，用 Hono 提供可选的本地后端，并把 ABC
+notation 渲染成可以播放的音符。
 
-Full English documentation: [README.en.md](README.en.md).
+English documentation: [README.en.md](README.en.md).
 
-## Run
+## 功能
+
+- 可视化编辑 Markdown，显式保存时导出 Markdown。
+- 行内 ABC notation：`{C D E F | G A B c}` 会直接显示成音符。
+- 行间 ABC notation：支持 ```` ```abc note ```` 代码块并渲染乐谱。
+- 音符可播放，钢琴音色可在设置面板中切换。
+- 可选择本地 Markdown 文件夹，路径输入框支持 autocomplete。
+- 支持新建、删除、重载和保存 Markdown 文件。
+- 设置遵守 XDG，默认写入 `~/.config/literate-noting/settings.json`。
+- 前端默认写入 localStorage 和 IndexedDB；没有后端时也能作为静态 UI 使用。
+- GitHub Pages 只部署前端，文件系统能力在无后端环境下自动降级为浏览器存储。
+
+## 截图
+
+![Literate Noting screenshot](docs/screenshot.png)
+
+## 安装与运行
+
+需要 Node.js 22+ 和 pnpm 10。
 
 ```sh
 pnpm install
 pnpm dev
 ```
 
-Open `http://127.0.0.1:5173`.
+打开：
 
-## Workspace
+```text
+http://127.0.0.1:5173
+```
 
-- `packages/literate-noting/src/client`: React, Lexical, ABC rendering and playback.
-- `packages/literate-noting/src/server`: Hono API and static client hosting.
-- `packages/literate-noting/documents`: Markdown documents served by the backend.
-- Current document folder is stored in the XDG config file at
-  `~/.config/literate-noting/settings.json` unless `XDG_CONFIG_HOME` or
-  `LITERATE_NOTING_CONFIG_DIR` overrides it.
-- The frontend keeps settings and document records in `localStorage` and
-  IndexedDB so it can run without the backend. `Ctrl+S` syncs Markdown to the
-  browser stores and, when the backend is available, the selected local folder.
+`pnpm dev` 会启动两个服务：
 
-## API
+- Vite 前端：`http://127.0.0.1:5173`
+- Hono 后端：`http://127.0.0.1:8787`
 
-- `GET /api/workspace` returns the current Markdown folder.
-- `PUT /api/workspace` opens `{ "path": "/path/to/folder" }`.
-- `GET /api/folders/suggest?query=/path` returns folder autocomplete results.
-- `GET /api/documents` lists Markdown documents.
-- `POST /api/documents` creates a Markdown file from `{ "title": "..." }`.
-- `GET /api/documents/:id` returns one document.
-- `PUT /api/documents/:id` saves `{ "markdown": "..." }`.
-- `DELETE /api/documents/:id` deletes one Markdown file.
+## 使用
 
-## ABC Markdown Syntax
+- 在左侧文件夹输入框中输入路径，选择 autocomplete 结果，点击文件夹按钮打开。
+- 在“新建文件”输入框输入标题，点击新建按钮创建 Markdown 文件。
+- 选择文档后编辑内容，按 `Ctrl+S` 保存。
+- 点击设置按钮切换钢琴音色。
+- 点击删除按钮删除当前文档。
 
-Inline ABC notation:
+## Markdown 音符语法
+
+行内音符：
 
 ```md
 Inline melody: {C D E F | G A B c}
 ```
 
-Block ABC notation:
+行间音符：
 
 ````md
 ```abc note
@@ -56,3 +70,20 @@ K:C
 CDEF GABc | cBAG FEDC |
 ```
 ````
+
+## 静态部署
+
+GitHub Pages 只构建并部署前端。没有 Hono 后端时，本地文件夹选择和文件系统写入不可用，但应用仍会使用 localStorage 和 IndexedDB 保存内容。
+
+仓库子路径部署时设置 `BASE_PATH`：
+
+```sh
+BASE_PATH=/literate-noting/ pnpm --filter literate-noting build:client
+```
+
+## 验证
+
+```sh
+pnpm typecheck
+pnpm build
+```
