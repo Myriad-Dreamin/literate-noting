@@ -1,7 +1,16 @@
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
+import { watch } from "chokidar";
 import { Hono } from "hono";
-import { mkdir, readFile, readdir, stat, unlink, writeFile } from "node:fs/promises";
+import createIgnore, { type Ignore } from "ignore";
+import {
+  mkdir,
+  readFile,
+  readdir,
+  stat,
+  unlink,
+  writeFile
+} from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,6 +23,12 @@ type DocumentSummary = {
 
 type MarkdownDocument = DocumentSummary & {
   markdown: string;
+};
+
+type DocumentWatchEvent = {
+  event: "add" | "change" | "gitignore" | "unlink";
+  id?: string;
+  updatedAt: string;
 };
 
 type WorkspaceInfo = {
@@ -149,30 +164,110 @@ app.get("/api/documents", async (context) => {
   const documentsRoot = await readDocumentsRoot();
   await ensureDocumentsRoot(documentsRoot);
 
-  const files = await readdir(documentsRoot);
-  const documents = await Promise.all(
-    files
-      .filter((file) => file.endsWith(".md"))
-      .map(async (file): Promise<DocumentSummary> => {
-        const id = file.slice(0, -3);
-        const filePath = path.join(documentsRoot, file);
-        const [markdown, fileStat] = await Promise.all([
-          readFile(filePath, "utf8"),
-          stat(filePath)
-        ]);
-
-        return {
-          id,
-          title: readTitle(markdown) ?? id,
-          updatedAt: fileStat.mtime.toISOString()
-        };
-      })
-  );
+  const documents = await readDocumentSummaries(documentsRoot);
 
   documents.sort((left: DocumentSummary, right: DocumentSummary) =>
     right.updatedAt.localeCompare(left.updatedAt)
   );
   return context.json({ documents });
+});
+
+app.get("/api/documents/events", async () => {
+  const documentsRoot = await readDocumentsRoot();
+  await ensureDocumentsRoot(documentsRoot);
+
+  const encoder = new TextEncoder();
+  let watcherIgnore = await loadGitignoreMatcher(documentsRoot);
+  let intervalId: NodeJS.Timeout | undefined;
+  let watcher: ReturnType<typeof watch> | undefined;
+
+  async function closeWatcher() {
+    if (intervalId) {
+      clearInterval(intervalId);
+      intervalId = undefined;
+    }
+
+    if (watcher) {
+      const activeWatcher = watcher;
+      watcher = undefined;
+      await activeWatcher.close();
+    }
+  }
+
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      watcher = watch(".", {
+        cwd: documentsRoot,
+        depth: 0,
+        ignoreInitial: true,
+        ignored: (entryPath) =>
+          isIgnoredWatchPath(documentsRoot, entryPath, watcherIgnore)
+      });
+
+      async function handleWatchEvent(
+        event: "add" | "change" | "unlink",
+        entryPath: string
+      ) {
+        const relativePath = toWorkspaceRelativePath(documentsRoot, entryPath);
+
+        if (relativePath === ".gitignore") {
+          watcherIgnore = await loadGitignoreMatcher(documentsRoot);
+          writeSse(controller, encoder, "documents-changed", {
+            event: "gitignore",
+            updatedAt: new Date().toISOString()
+          });
+          return;
+        }
+
+        if (!isVisibleMarkdownFile(relativePath, watcherIgnore)) {
+          return;
+        }
+
+        writeSse(controller, encoder, "documents-changed", {
+          event,
+          id: relativePath.slice(0, -3),
+          updatedAt: new Date().toISOString()
+        });
+      }
+
+      watcher.on("add", (entryPath) => {
+        void handleWatchEvent("add", entryPath);
+      });
+      watcher.on("change", (entryPath) => {
+        void handleWatchEvent("change", entryPath);
+      });
+      watcher.on("unlink", (entryPath) => {
+        void handleWatchEvent("unlink", entryPath);
+      });
+      watcher.on("ready", () => {
+        writeSse(controller, encoder, "ready", {
+          updatedAt: new Date().toISOString()
+        });
+      });
+
+      intervalId = setInterval(() => {
+        writeSse(controller, encoder, "ping", {
+          updatedAt: new Date().toISOString()
+        });
+      }, 30000);
+
+      watcher.on("error", () => {
+        void closeWatcher();
+        controller.close();
+      });
+    },
+    cancel() {
+      void closeWatcher();
+    }
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Cache-Control": "no-cache",
+      "Content-Type": "text/event-stream",
+      "X-Accel-Buffering": "no"
+    }
+  });
 });
 
 app.post("/api/documents", async (context) => {
@@ -190,6 +285,13 @@ app.post("/api/documents", async (context) => {
     documentsRoot,
     requestedId ?? slugifyDocumentTitle(title)
   );
+
+  if (!documentId) {
+    return context.json(
+      { error: "No available Markdown filename outside .gitignore." },
+      400
+    );
+  }
   const markdown =
     body && typeof body.markdown === "string"
       ? body.markdown
@@ -241,9 +343,10 @@ app.put("/api/settings", async (context) => {
 
 app.get("/api/documents/:id", async (context) => {
   const documentId = context.req.param("id");
-  const filePath = toDocumentPath(documentId, await readDocumentsRoot());
+  const documentsRoot = await readDocumentsRoot();
+  const filePath = toDocumentPath(documentId, documentsRoot);
 
-  if (!filePath) {
+  if (!filePath || (await isIgnoredDocumentId(documentsRoot, documentId))) {
     return context.json({ error: "Invalid document id." }, 400);
   }
 
@@ -278,6 +381,10 @@ app.put("/api/documents/:id", async (context) => {
     return context.json({ error: "Invalid document id." }, 400);
   }
 
+  if (await isIgnoredDocumentId(documentsRoot, documentId)) {
+    return context.json({ error: "Document is ignored by .gitignore." }, 400);
+  }
+
   const body = await context.req
     .json<{ markdown?: unknown }>()
     .catch(() => null);
@@ -302,9 +409,10 @@ app.put("/api/documents/:id", async (context) => {
 
 app.delete("/api/documents/:id", async (context) => {
   const documentId = context.req.param("id");
-  const filePath = toDocumentPath(documentId, await readDocumentsRoot());
+  const documentsRoot = await readDocumentsRoot();
+  const filePath = toDocumentPath(documentId, documentsRoot);
 
-  if (!filePath) {
+  if (!filePath || (await isIgnoredDocumentId(documentsRoot, documentId))) {
     return context.json({ error: "Invalid document id." }, 400);
   }
 
@@ -435,6 +543,99 @@ async function suggestFolders(query: string): Promise<FolderSuggestion[]> {
     }));
 }
 
+async function readDocumentSummaries(
+  documentsRoot: string
+): Promise<DocumentSummary[]> {
+  const ignoreMatcher = await loadGitignoreMatcher(documentsRoot);
+  const entries = await readdir(documentsRoot, { withFileTypes: true });
+  const markdownFiles = entries
+    .filter((entry) => entry.isFile())
+    .map((entry) => entry.name)
+    .filter((file) => isVisibleMarkdownFile(file, ignoreMatcher));
+
+  return Promise.all(
+    markdownFiles.map(async (file): Promise<DocumentSummary> => {
+      const id = file.slice(0, -3);
+      const filePath = path.join(documentsRoot, file);
+      const [markdown, fileStat] = await Promise.all([
+        readFile(filePath, "utf8"),
+        stat(filePath)
+      ]);
+
+      return {
+        id,
+        title: readTitle(markdown) ?? id,
+        updatedAt: fileStat.mtime.toISOString()
+      };
+    })
+  );
+}
+
+async function loadGitignoreMatcher(documentsRoot: string): Promise<Ignore> {
+  const ignoreMatcher = createIgnore().add([".git/", "node_modules/"]);
+  const gitignorePath = path.join(documentsRoot, ".gitignore");
+
+  try {
+    ignoreMatcher.add(await readFile(gitignorePath, "utf8"));
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") {
+      return ignoreMatcher;
+    }
+
+    throw error;
+  }
+
+  return ignoreMatcher;
+}
+
+async function isIgnoredDocumentId(
+  documentsRoot: string,
+  documentId: string
+): Promise<boolean> {
+  return !(await isVisibleDocumentId(documentsRoot, documentId));
+}
+
+async function isVisibleDocumentId(
+  documentsRoot: string,
+  documentId: string
+): Promise<boolean> {
+  if (!documentIdPattern.test(documentId)) {
+    return false;
+  }
+
+  const ignoreMatcher = await loadGitignoreMatcher(documentsRoot);
+  return isVisibleMarkdownFile(`${documentId}.md`, ignoreMatcher);
+}
+
+function isVisibleMarkdownFile(
+  relativePath: string,
+  ignoreMatcher: Ignore
+): boolean {
+  const normalizedPath = toPosixPath(relativePath);
+
+  return (
+    normalizedPath.endsWith(".md") && !ignoreMatcher.ignores(normalizedPath)
+  );
+}
+
+function isIgnoredWatchPath(
+  documentsRoot: string,
+  entryPath: string,
+  ignoreMatcher: Ignore
+): boolean {
+  const relativePath = toWorkspaceRelativePath(documentsRoot, entryPath);
+
+  if (
+    relativePath === "." ||
+    relativePath === "" ||
+    relativePath === ".gitignore"
+  ) {
+    return false;
+  }
+
+  return !isVisibleMarkdownFile(relativePath, ignoreMatcher);
+}
+
 function normalizeSettings(source: unknown): AppSettings {
   const candidate =
     source && typeof source === "object"
@@ -477,17 +678,23 @@ function toDocumentPath(
 async function nextAvailableDocumentId(
   documentsRoot: string,
   baseDocumentId: string
-): Promise<string> {
+): Promise<string | null> {
   const base = sanitizeDocumentId(baseDocumentId) ?? "untitled";
 
   for (let index = 0; index < 1000; index += 1) {
     const documentId = index === 0 ? base : `${base}-${index + 1}`;
-    if (!(await documentExists(documentsRoot, documentId))) {
+    if (
+      (await isVisibleDocumentId(documentsRoot, documentId)) &&
+      !(await documentExists(documentsRoot, documentId))
+    ) {
       return documentId;
     }
   }
 
-  return `${base}-${Date.now()}`;
+  const fallbackId = `${base}-${Date.now()}`;
+  return (await isVisibleDocumentId(documentsRoot, fallbackId))
+    ? fallbackId
+    : null;
 }
 
 async function documentExists(
@@ -537,6 +744,32 @@ function isNodeError(error: unknown): error is NodeJS.ErrnoException {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
+}
+
+function writeSse(
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  encoder: TextEncoder,
+  event: string,
+  data: DocumentWatchEvent | { updatedAt: string }
+): void {
+  controller.enqueue(
+    encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+  );
+}
+
+function toWorkspaceRelativePath(
+  documentsRoot: string,
+  entryPath: string
+): string {
+  const absolutePath = path.isAbsolute(entryPath)
+    ? entryPath
+    : path.join(documentsRoot, entryPath);
+
+  return toPosixPath(path.relative(documentsRoot, absolutePath));
+}
+
+function toPosixPath(source: string): string {
+  return source.split(path.sep).join("/");
 }
 
 function resolveUserPath(source: string): string {

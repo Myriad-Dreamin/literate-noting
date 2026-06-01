@@ -26,6 +26,12 @@ type JsonRequestResult<T> =
   | { data: T; ok: true }
   | { message: string; ok: false; status?: number; unavailable: boolean };
 
+export type DocumentWatchEvent = {
+  event: "add" | "change" | "gitignore" | "unlink";
+  id?: string;
+  updatedAt: string;
+};
+
 const databaseName = "literate-noting";
 const databaseVersion = 1;
 const recordStoreName = "records";
@@ -228,6 +234,20 @@ export const documentProvider = {
     );
 
     return data?.suggestions ?? [];
+  },
+
+  watchDocuments(onChange: (event: DocumentWatchEvent) => void): () => void {
+    if (!("EventSource" in window)) {
+      return () => {};
+    }
+
+    const eventSource = new EventSource("/api/documents/events");
+
+    eventSource.addEventListener("documents-changed", (event) => {
+      onChange(JSON.parse(event.data) as DocumentWatchEvent);
+    });
+
+    return () => eventSource.close();
   },
 
   async loadDraft(documentId: string): Promise<DocumentDraft | null> {

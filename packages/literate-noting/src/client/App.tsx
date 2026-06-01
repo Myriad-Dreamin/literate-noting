@@ -43,6 +43,8 @@ type EditorLoad = {
 
 export function App() {
   const editorRef = useRef<MarkdownEditorHandle | null>(null);
+  const activeDocumentRef = useRef<MarkdownDocument | null>(null);
+  const isDirtyRef = useRef(false);
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [activeDocument, setActiveDocument] = useState<MarkdownDocument | null>(
     null
@@ -71,6 +73,14 @@ export function App() {
     message: "正在载入文档"
   });
   const [saveState, setSaveState] = useState("未保存");
+
+  useEffect(() => {
+    activeDocumentRef.current = activeDocument;
+  }, [activeDocument]);
+
+  useEffect(() => {
+    isDirtyRef.current = isDirty;
+  }, [isDirty]);
 
   useEffect(() => {
     let mounted = true;
@@ -133,6 +143,62 @@ export function App() {
 
     return () => window.clearTimeout(timeoutId);
   }, [folderQuery, isFolderAutocompleteOpen]);
+
+  useEffect(() => {
+    if (!workspace?.backendAvailable) {
+      return;
+    }
+
+    let refreshPromise: Promise<void> | null = null;
+
+    return documentProvider.watchDocuments(() => {
+      if (refreshPromise) {
+        return;
+      }
+
+      refreshPromise = refreshDocumentsFromDisk().finally(() => {
+        refreshPromise = null;
+      });
+    });
+  }, [workspace?.backendAvailable, workspace?.path]);
+
+  async function refreshDocumentsFromDisk() {
+    const currentDocument = activeDocumentRef.current;
+    const documentList = await documentProvider.list();
+
+    setDocuments(documentList);
+
+    if (!currentDocument) {
+      const firstDocument = documentList[0];
+      if (firstDocument) {
+        await openDocument(firstDocument.id);
+      }
+      return;
+    }
+
+    const stillExists = documentList.some(
+      (document) => document.id === currentDocument.id
+    );
+
+    if (!stillExists) {
+      if (isDirtyRef.current) {
+        setDocumentActionState("磁盘文件已删除，当前草稿未覆盖");
+        return;
+      }
+
+      const firstDocument = documentList[0];
+      if (firstDocument) {
+        await openDocument(firstDocument.id);
+      } else {
+        clearActiveDocument();
+      }
+      return;
+    }
+
+    if (!isDirtyRef.current) {
+      await openDocument(currentDocument.id);
+    }
+  }
 
   function clearActiveDocument() {
     setActiveDocument(null);
