@@ -88,32 +88,33 @@ export function App() {
   useEffect(() => {
     let mounted = true;
 
-    Promise.all([
-      configProvider.load(),
-      documentProvider.getWorkspace(),
-      documentProvider.list()
-    ])
-      .then(async ([loadedSettings, loadedWorkspace, documentList]) => {
-        if (!mounted) {
-          return;
-        }
+    async function loadInitialWorkspace() {
+      const loadedSettings = await configProvider.load();
+      const loadedWorkspace = await documentProvider.getWorkspace();
+      const documentList = await documentProvider.list();
 
-        setSettings(loadedSettings);
-        setWorkspace(loadedWorkspace);
-        setFolderQuery(loadedWorkspace.path);
-        setWorkspaceState(
-          loadedWorkspace.backendAvailable ? "已连接本地文件夹" : "浏览器存储"
-        );
-        setDocuments(documentList);
+      if (!mounted) {
+        return;
+      }
 
-        const firstDocument = documentList[0];
-        if (!firstDocument) {
-          clearActiveDocument();
-          return;
-        }
+      setSettings(loadedSettings);
+      setWorkspace(loadedWorkspace);
+      setFolderQuery(loadedWorkspace.path);
+      setWorkspaceState(
+        loadedWorkspace.backendAvailable ? "已恢复上次文件夹" : "浏览器存储"
+      );
+      setDocuments(documentList);
 
-        await openDocument(firstDocument.id, mounted);
-      })
+      const firstDocument = documentList[0];
+      if (!firstDocument) {
+        clearActiveDocument();
+        return;
+      }
+
+      await openDocument(firstDocument.id, mounted);
+    }
+
+    loadInitialWorkspace()
       .catch((error: unknown) => {
         if (!mounted) {
           return;

@@ -63,9 +63,15 @@ export const configProvider = {
 
     if (browserSettings && backendSettings) {
       const settings = mergeSettings(backendSettings, browserSettings);
-      await writeBrowserSettings(settings);
-      void syncSettingsToBackend(settings);
-      return settings;
+      const rememberedSettings = backendSettings.documentsRoot
+        ? {
+            ...settings,
+            documentsRoot: backendSettings.documentsRoot
+          }
+        : settings;
+      await writeBrowserSettings(rememberedSettings);
+      void syncSettingsToBackend(rememberedSettings);
+      return rememberedSettings;
     }
 
     if (browserSettings) {
