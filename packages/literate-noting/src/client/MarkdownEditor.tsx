@@ -1,11 +1,16 @@
-import { $createHeadingNode, HeadingNode } from "@lexical/rich-text";
+import { CodeHighlightNode, CodeNode } from "@lexical/code-core";
+import { ListItemNode, ListNode } from "@lexical/list";
+import { $createHeadingNode, HeadingNode, QuoteNode } from "@lexical/rich-text";
 import { LexicalComposer } from "@lexical/react/LexicalComposer";
 import { ContentEditable } from "@lexical/react/LexicalContentEditable";
 import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
 import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
+import { ListPlugin } from "@lexical/react/LexicalListPlugin";
 import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
 import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import { TablePlugin } from "@lexical/react/LexicalTablePlugin";
+import { TableCellNode, TableNode, TableRowNode } from "@lexical/table";
 import {
   $createParagraphNode,
   $getRoot,
@@ -68,19 +73,51 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
   const initialConfig = useMemo(
     () => ({
       namespace: "literate-noting",
-      nodes: [HeadingNode, BlockAbcNode, InlineAbcNode],
+      nodes: [
+        HeadingNode,
+        QuoteNode,
+        CodeNode,
+        CodeHighlightNode,
+        ListNode,
+        ListItemNode,
+        TableNode,
+        TableRowNode,
+        TableCellNode,
+        BlockAbcNode,
+        InlineAbcNode
+      ],
       onError(error: Error) {
         throw error;
       },
       theme: {
+        code: "editor-code",
         heading: {
           h1: "editor-heading editor-heading-h1",
           h2: "editor-heading editor-heading-h2",
           h3: "editor-heading editor-heading-h3"
         },
+        list: {
+          checklist: "editor-list editor-check-list",
+          listitem: "editor-list-item",
+          listitemChecked: "editor-list-item editor-list-item-checked",
+          listitemUnchecked: "editor-list-item editor-list-item-unchecked",
+          nested: {
+            list: "editor-list-nested",
+            listitem: "editor-list-item-nested"
+          },
+          ol: "editor-list editor-list-ol",
+          ul: "editor-list editor-list-ul"
+        },
         paragraph: "editor-paragraph",
+        quote: "editor-quote",
+        table: "editor-table",
+        tableCell: "editor-table-cell",
+        tableCellHeader: "editor-table-cell-header",
+        tableRow: "editor-table-row",
+        tableScrollableWrapper: "editor-table-scroll",
         text: {
           bold: "editor-text-bold",
+          code: "editor-text-code",
           italic: "editor-text-italic"
         }
       }
@@ -131,6 +168,8 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
             ErrorBoundary={LexicalErrorBoundary}
           />
           <HistoryPlugin />
+          <ListPlugin />
+          <TablePlugin hasCellMerge={false} hasHorizontalScroll />
           <EditorReadyPlugin
             onReady={(editor) => {
               editorRef.current = editor;

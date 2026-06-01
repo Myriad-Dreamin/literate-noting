@@ -441,6 +441,135 @@ button:disabled {
   font-style: italic;
 }
 
+.editor-text-code {
+  border: 1px solid #e1d6c8;
+  border-radius: 4px;
+  padding: 1px 5px;
+  background: #f4eadc;
+  color: #7d3f28;
+  font-family:
+    "SFMono-Regular", Consolas, "Liberation Mono", ui-monospace, monospace;
+  font-size: 0.9em;
+}
+
+.editor-quote {
+  margin: 0 0 16px;
+  border-left: 4px solid #c9986e;
+  padding: 8px 0 8px 16px;
+  color: #5d666a;
+  background: #fbf3e8;
+}
+
+.editor-code {
+  display: block;
+  overflow-x: auto;
+  margin: 0 0 18px;
+  border: 1px solid #d8d1c6;
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: #20272b;
+  color: #f6efe5;
+  font-family:
+    "SFMono-Regular", Consolas, "Liberation Mono", ui-monospace, monospace;
+  font-size: 14px;
+  line-height: 1.55;
+  tab-size: 2;
+  white-space: pre;
+}
+
+.editor-list {
+  margin: 0 0 16px;
+  padding-left: 1.5em;
+}
+
+.editor-list-ol {
+  list-style: decimal;
+}
+
+.editor-list-ul {
+  list-style: disc;
+}
+
+.editor-list-item {
+  margin: 3px 0;
+  padding-left: 2px;
+}
+
+.editor-list-nested {
+  margin: 4px 0;
+}
+
+.editor-list-item-nested {
+  list-style-type: circle;
+}
+
+.editor-check-list {
+  padding-left: 0;
+  list-style: none;
+}
+
+.editor-list-item-checked,
+.editor-list-item-unchecked {
+  position: relative;
+  padding-left: 28px;
+}
+
+.editor-list-item-checked::before,
+.editor-list-item-unchecked::before {
+  position: absolute;
+  top: 0.42em;
+  left: 0;
+  display: inline-flex;
+  width: 15px;
+  height: 15px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #b9ad9f;
+  border-radius: 4px;
+  color: #fffaf2;
+  font-size: 11px;
+  line-height: 1;
+  content: "";
+}
+
+.editor-list-item-checked::before {
+  border-color: #8c5a39;
+  background: #9f5d3d;
+  content: "✓";
+}
+
+.editor-table-scroll {
+  overflow-x: auto;
+  margin: 0 0 18px;
+}
+
+.editor-table {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: collapse;
+  border: 1px solid #d8d1c6;
+  background: #fffdf8;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.editor-table-cell {
+  min-width: 120px;
+  border: 1px solid #d8d1c6;
+  padding: 9px 10px;
+  vertical-align: top;
+}
+
+.editor-table-cell .editor-paragraph {
+  margin: 0;
+}
+
+.editor-table-cell-header {
+  background: #f1e4d4;
+  color: #263034;
+  font-weight: 800;
+}
+
 .abc-decorator-inline {
   display: inline-flex;
   max-width: min(100%, 340px);

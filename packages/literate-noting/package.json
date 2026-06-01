@@ -13,8 +13,11 @@
   },
   "dependencies": {
     "@hono/node-server": "^2.0.4",
+    "@lexical/code-core": "0.45.0",
+    "@lexical/list": "0.45.0",
     "@lexical/react": "^0.45.0",
     "@lexical/rich-text": "^0.45.0",
+    "@lexical/table": "0.45.0",
     "abcjs": "^6.6.3",
     "chokidar": "^5.0.0",
     "hono": "^4.12.23",

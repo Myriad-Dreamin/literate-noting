@@ -13,11 +13,20 @@ importers:
       '@hono/node-server':
         specifier: ^2.0.4
         version: 2.0.4(hono@4.12.23)
+      '@lexical/code-core':
+        specifier: 0.45.0
+        version: 0.45.0
+      '@lexical/list':
+        specifier: 0.45.0
+        version: 0.45.0
       '@lexical/react':
         specifier: ^0.45.0
         version: 0.45.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(yjs@13.6.31)
       '@lexical/rich-text':
         specifier: ^0.45.0
+        version: 0.45.0
+      '@lexical/table':
+        specifier: 0.45.0
         version: 0.45.0
       abcjs:
         specifier: ^6.6.3
