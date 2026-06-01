@@ -1,64 +1,72 @@
 # Literate Noting
 
-Literate Noting 是一个 local-first 的可视化 Markdown 笔记编辑器。它用
-React 和 Lexical 构建编辑体验，用 Hono 提供可选的本地后端，并把 ABC
-notation 渲染成可以播放的音符。
+Literate Noting is a local-first visual Markdown note editor. It uses React and
+Lexical for editing, an optional Hono backend for local filesystem access, and
+renders ABC notation as playable music inside the document.
 
-English documentation: [README.en.md](README.en.md).
+中文文档: [README.zh.md](README.zh.md).
 
-## 功能
+## Features
 
-- 可视化编辑 Markdown，显式保存时导出 Markdown。
-- 行内 ABC notation：`{C D E F | G A B c}` 会直接显示成音符。
-- 行间 ABC notation：支持 ```` ```abc note ```` 代码块并渲染乐谱。
-- 音符可播放，钢琴音色可在设置面板中切换。
-- 可选择本地 Markdown 文件夹，路径输入框支持 autocomplete。
-- 支持新建、删除、重载和保存 Markdown 文件。
-- 设置遵守 XDG，默认写入 `~/.config/literate-noting/settings.json`。
-- 前端默认写入 localStorage 和 IndexedDB；没有后端时也能作为静态 UI 使用。
-- GitHub Pages 只部署前端，文件系统能力在无后端环境下自动降级为浏览器存储。
+- Visual Markdown editing with explicit Markdown export on save.
+- Inline ABC notation: `{C D E F | G A B c}` renders as notes in the text.
+- Block ABC notation with fenced ```` ```abc note ```` blocks.
+- Playable notation rendered with `abcjs`.
+- Piano tone selection in the settings panel.
+- Local Markdown folder selection with path autocomplete.
+- Create, delete, reload, and save Markdown files.
+- XDG-compliant settings stored at `~/.config/literate-noting/settings.json`
+  by default.
+- Browser storage fallback through localStorage and IndexedDB.
+- GitHub Pages deploys the frontend only; without the backend, the app falls
+  back to browser storage.
 
-## 截图
+## Screenshot
 
 ![Literate Noting screenshot](docs/screenshot.png)
 
-## 安装与运行
+## Installation
 
-需要 Node.js 22+ 和 pnpm 10。
+Requirements:
+
+- Node.js 22 or newer.
+- pnpm 10.
 
 ```sh
 pnpm install
 pnpm dev
 ```
 
-打开：
+Open:
 
 ```text
 http://127.0.0.1:5173
 ```
 
-`pnpm dev` 会启动两个服务：
+`pnpm dev` starts two local services:
 
-- Vite 前端：`http://127.0.0.1:5173`
-- Hono 后端：`http://127.0.0.1:8787`
+- Vite frontend: `http://127.0.0.1:5173`
+- Hono backend: `http://127.0.0.1:8787`
 
-## 使用
+## Usage
 
-- 在左侧文件夹输入框中输入路径，选择 autocomplete 结果，点击文件夹按钮打开。
-- 在“新建文件”输入框输入标题，点击新建按钮创建 Markdown 文件。
-- 选择文档后编辑内容，按 `Ctrl+S` 保存。
-- 点击设置按钮切换钢琴音色。
-- 点击删除按钮删除当前文档。
+- Enter a path in the folder field, choose an autocomplete result, and click the
+  folder button to open it.
+- Enter a title in the new-file field and click the new-file button to create a
+  Markdown document.
+- Select a document, edit it, and press `Ctrl+S` to save.
+- Open settings to change the piano tone.
+- Use the delete button to remove the current document.
 
-## Markdown 音符语法
+## ABC Markdown Syntax
 
-行内音符：
+Inline ABC notation:
 
 ```md
 Inline melody: {C D E F | G A B c}
 ```
 
-行间音符：
+Block ABC notation:
 
 ````md
 ```abc note
@@ -71,17 +79,19 @@ CDEF GABc | cBAG FEDC |
 ```
 ````
 
-## 静态部署
+## Static Hosting
 
-GitHub Pages 只构建并部署前端。没有 Hono 后端时，本地文件夹选择和文件系统写入不可用，但应用仍会使用 localStorage 和 IndexedDB 保存内容。
+GitHub Pages builds and deploys only the frontend. Without the Hono backend,
+local folder selection and filesystem writes are unavailable, but the app still
+persists data through localStorage and IndexedDB.
 
-仓库子路径部署时设置 `BASE_PATH`：
+For repository-scoped Pages deployments, set `BASE_PATH`:
 
 ```sh
 BASE_PATH=/literate-noting/ pnpm --filter literate-noting build:client
 ```
 
-## 验证
+## Verification
 
 ```sh
 pnpm typecheck
