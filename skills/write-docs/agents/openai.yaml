@@ -1,0 +1,4 @@
+interface:
+  display_name: "Write Docs"
+  short_description: "Write concise, maintainable project documentation."
+  default_prompt: "Use this skill when asked to create or improve project documentation."

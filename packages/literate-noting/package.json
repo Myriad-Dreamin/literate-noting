@@ -1,0 +1,33 @@
+{
+  "name": "literate-noting",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:client": "vite build",
+    "build:server": "tsc -p tsconfig.server.json",
+    "build": "pnpm build:client && pnpm build:server",
+    "dev": "pnpm build:server && node scripts/dev.mjs",
+    "start": "node dist/server/index.js",
+    "typecheck": "tsc -p tsconfig.client.json --noEmit && tsc -p tsconfig.server.json --noEmit"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.0.4",
+    "@lexical/react": "^0.45.0",
+    "@lexical/rich-text": "^0.45.0",
+    "abcjs": "^6.6.3",
+    "hono": "^4.12.23",
+    "lexical": "^0.45.0",
+    "lucide-react": "^1.17.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.2.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.3"
+  }
+}

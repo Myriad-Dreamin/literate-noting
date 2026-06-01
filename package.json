@@ -1,0 +1,13 @@
+{
+  "name": "literate-noting-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.16.1",
+  "scripts": {
+    "build": "pnpm --filter literate-noting build",
+    "dev": "pnpm --filter literate-noting dev",
+    "start": "pnpm --filter literate-noting start",
+    "test": "pnpm -r typecheck",
+    "typecheck": "pnpm -r typecheck"
+  }
+}
