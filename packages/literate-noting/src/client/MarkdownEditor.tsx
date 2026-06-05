@@ -23,7 +23,7 @@ import {
   type SerializedEditorState,
   type SerializedLexicalNode
 } from "lexical";
-import { Music, Plus, Type } from "lucide-react";
+import { FileMusic, Music, Plus, Type } from "lucide-react";
 import {
   forwardRef,
   useEffect,
@@ -37,6 +37,7 @@ import {
   $createBlockAbcNode,
   $createInlineAbcNode
 } from "./nodes/AbcNode";
+import { MusicXmlNode, $createMusicXmlNode } from "./nodes/MusicXmlNode";
 import {
   exportMarkdownFromEditor,
   importMarkdownIntoEditor
@@ -49,6 +50,65 @@ M:4/4
 L:1/8
 K:C
 CDEF GABc | cBAG FEDC |`;
+const defaultMusicXml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 3.1 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
+<score-partwise version="3.1">
+  <part-list>
+    <score-part id="P1">
+      <part-name>Piano</part-name>
+    </score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes>
+        <divisions>1</divisions>
+        <key>
+          <fifths>0</fifths>
+        </key>
+        <time>
+          <beats>4</beats>
+          <beat-type>4</beat-type>
+        </time>
+        <clef>
+          <sign>G</sign>
+          <line>2</line>
+        </clef>
+      </attributes>
+      <note>
+        <pitch>
+          <step>C</step>
+          <octave>4</octave>
+        </pitch>
+        <duration>1</duration>
+        <type>quarter</type>
+      </note>
+      <note>
+        <pitch>
+          <step>D</step>
+          <octave>4</octave>
+        </pitch>
+        <duration>1</duration>
+        <type>quarter</type>
+      </note>
+      <note>
+        <pitch>
+          <step>E</step>
+          <octave>4</octave>
+        </pitch>
+        <duration>1</duration>
+        <type>quarter</type>
+      </note>
+      <note>
+        <pitch>
+          <step>F</step>
+          <octave>4</octave>
+        </pitch>
+        <duration>1</duration>
+        <type>quarter</type>
+      </note>
+    </measure>
+  </part>
+</score-partwise>`;
 const loadEditorStateTag = "literate-noting-load";
 type StoredEditorState = SerializedEditorState<SerializedLexicalNode>;
 
@@ -84,7 +144,8 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         TableRowNode,
         TableCellNode,
         BlockAbcNode,
-        InlineAbcNode
+        InlineAbcNode,
+        MusicXmlNode
       ],
       onError(error: Error) {
         throw error;
@@ -257,6 +318,15 @@ function EditorToolbar() {
         <Plus size={16} />
         行间
       </button>
+      <button
+        className="toolbar-button toolbar-text-button"
+        onClick={() => insertMusicXml(editor)}
+        title="插入 MusicXML"
+        type="button"
+      >
+        <FileMusic size={16} />
+        MusicXML
+      </button>
     </div>
   );
 }
@@ -399,6 +469,23 @@ function insertBlockAbc(editor: LexicalEditor) {
     }
 
     $getRoot().append(blockNode, nextParagraph);
+    nextParagraph.select();
+  });
+}
+
+function insertMusicXml(editor: LexicalEditor) {
+  editor.update(() => {
+    const selection = $getSelection();
+    const musicXmlNode = $createMusicXmlNode(defaultMusicXml);
+    const nextParagraph = $createParagraphNode();
+
+    if ($isRangeSelection(selection)) {
+      selection.insertNodes([musicXmlNode, nextParagraph]);
+      nextParagraph.select();
+      return;
+    }
+
+    $getRoot().append(musicXmlNode, nextParagraph);
     nextParagraph.select();
   });
 }

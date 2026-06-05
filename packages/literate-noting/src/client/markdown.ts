@@ -41,6 +41,10 @@ import {
   $isBlockAbcNode,
   $isInlineAbcNode
 } from "./nodes/AbcNode";
+import {
+  $createMusicXmlNode,
+  $isMusicXmlNode
+} from "./nodes/MusicXmlNode";
 
 type ListLine = {
   checked?: boolean;
@@ -51,6 +55,7 @@ type ListLine = {
 };
 
 const abcFenceStartPattern = /^```abc(?:\s+note)?\s*$/i;
+const musicXmlFenceStartPattern = /^```(?:music-xml|musicxml|xml-music)\s*$/i;
 const codeFenceStartPattern = /^```([^\s`]*)\s*$/;
 const fenceEndPattern = /^```\s*$/;
 const headingPattern = /^(#{1,6})\s+(.+)$/;
@@ -71,6 +76,13 @@ export function importMarkdownIntoEditor(markdown: string): void {
 
     if (abcFenceStartPattern.test(line)) {
       const [node, nextIndex] = readAbcBlock(lines, index);
+      root.append(node);
+      index = nextIndex;
+      continue;
+    }
+
+    if (musicXmlFenceStartPattern.test(line)) {
+      const [node, nextIndex] = readMusicXmlBlock(lines, index);
       root.append(node);
       index = nextIndex;
       continue;
@@ -168,6 +180,25 @@ function readAbcBlock(
   }
 
   return [$createBlockAbcNode(notationLines.join("\n").trim()), index];
+}
+
+function readMusicXmlBlock(
+  lines: string[],
+  startIndex: number
+): [LexicalNode, number] {
+  const xmlLines: string[] = [];
+  let index = startIndex + 1;
+
+  while (index < lines.length && !fenceEndPattern.test(lines[index] ?? "")) {
+    xmlLines.push(lines[index] ?? "");
+    index += 1;
+  }
+
+  if (index < lines.length) {
+    index += 1;
+  }
+
+  return [$createMusicXmlNode(xmlLines.join("\n").trim()), index];
 }
 
 function readCodeBlock(
@@ -376,6 +407,10 @@ function appendFormattedText(
 function serializeTopLevelNode(node: LexicalNode): string | null {
   if ($isBlockAbcNode(node)) {
     return `\`\`\`abc note\n${node.getNotation().trim()}\n\`\`\``;
+  }
+
+  if ($isMusicXmlNode(node)) {
+    return `\`\`\`music-xml\n${node.getXml().trim()}\n\`\`\``;
   }
 
   if ($isCodeNode(node)) {
@@ -624,6 +659,7 @@ function isBlockStart(lines: string[], index: number): boolean {
   const line = lines[index] ?? "";
   return (
     abcFenceStartPattern.test(line) ||
+    musicXmlFenceStartPattern.test(line) ||
     codeFenceStartPattern.test(line) ||
     headingPattern.test(line) ||
     isBlockquoteLine(line) ||

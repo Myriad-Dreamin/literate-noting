@@ -570,6 +570,100 @@ button:disabled {
   font-weight: 800;
 }
 
+.musicxml-decorator {
+  display: block;
+  margin: 18px 0;
+}
+
+.musicxml-node {
+  position: relative;
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  gap: 8px;
+  border: 1px solid #cfc5b8;
+  border-radius: 8px;
+  padding: 14px;
+  background: #fffaf2;
+  color: #20272b;
+}
+
+.musicxml-node-main {
+  min-width: 0;
+  flex: 1;
+  overflow: auto;
+}
+
+.musicxml-sheet {
+  min-width: 0;
+}
+
+.musicxml-sheet svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.musicxml-node-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.musicxml-error {
+  border: 1px solid #e1b2a8;
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: #fff1ed;
+  color: #9a3d2d;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.musicxml-editor-popover {
+  position: absolute;
+  z-index: 20;
+  top: 48px;
+  right: 12px;
+  display: grid;
+  width: min(720px, calc(100% - 24px));
+  gap: 8px;
+  border: 1px solid #b9ad9f;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fffdf8;
+  box-shadow: 0 14px 32px rgba(32, 39, 43, 0.18);
+}
+
+.musicxml-editor-input {
+  width: 100%;
+  min-height: 260px;
+  resize: vertical;
+  border: 1px solid #c9c0b3;
+  border-radius: 6px;
+  padding: 10px;
+  background: #fffaf2;
+  color: #20272b;
+  font-family:
+    "SFMono-Regular", Consolas, "Liberation Mono", ui-monospace, monospace;
+  font-size: 13px;
+  line-height: 1.45;
+  outline: none;
+}
+
+.musicxml-editor-input:focus {
+  border-color: #9f5d3d;
+  box-shadow: 0 0 0 3px rgba(159, 93, 61, 0.13);
+}
+
+.musicxml-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .abc-decorator-inline {
   display: inline-flex;
   max-width: min(100%, 340px);
